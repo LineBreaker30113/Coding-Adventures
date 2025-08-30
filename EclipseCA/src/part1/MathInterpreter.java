@@ -1,5 +1,6 @@
 package part1;
 
+import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -699,7 +700,9 @@ public class MathInterpreter {
 						} else { mayIncreaseDivder = 0; }
 						formerHeight = height;
 					}
-					if(divider * (GRAPH.getWidth() - x) > 180 * 180 * 16 / Runtime.getRuntime().availableProcessors()) {
+					if(divider * (GRAPH.getWidth() - x) * INPUT_TEXTBOX.getText().length() >
+						180 * 180 * defaultFunction.length() * 16 / Runtime.getRuntime().availableProcessors())
+					{
 						System.out.println("parallelizing: " + (divider * (GRAPH.getWidth() - x)));
 						IntStream.range(x, GRAPH.getWidth()).parallel().forEach(xp -> {
 							for(int di = -mid; di <= mid; di++) {
@@ -720,9 +723,42 @@ public class MathInterpreter {
 //				System.out.println(divider);
 			}
 			public static void graphPostpaint(Graphics2D g) {
-				g.setColor(new Color(255, 0, 0));
-				g.drawLine(0, GRAPH.getHeight()/2, GRAPH.getWidth(), GRAPH.getHeight()/2);
-				g.drawLine(GRAPH.getWidth()/2, 0, GRAPH.getWidth()/2, GRAPH.getHeight());
+				for(int i = 0; i < GRAPH.getWidth()/2; i += 20) {
+					if(i % 100 == 0) { continue; }
+					g.setColor(new Color(0, 0, 255, Math.max(127 - i/10, 0)));
+					g.drawLine(GRAPH.getWidth()/2 + i, 0, GRAPH.getWidth()/2 + i, GRAPH.getHeight());
+					g.drawLine(GRAPH.getWidth()/2 - i, 0, GRAPH.getWidth()/2 - i, GRAPH.getHeight());
+				}
+				for(int i = 0; i < GRAPH.getHeight()/2; i += 20) {
+					if(i % 100 == 0) { continue; }
+					g.setColor(new Color(0, 0, 255, Math.max(191 - i/5, 0)));
+					g.drawLine(0, GRAPH.getHeight()/2 + i, GRAPH.getWidth(), GRAPH.getHeight()/2 + i);
+					g.drawLine(0, GRAPH.getHeight()/2 - i, GRAPH.getWidth(), GRAPH.getHeight()/2 - i);
+				}
+				for(int i = 0; i < GRAPH.getWidth()/2; i += 100) {
+					if(i % 400 == 0) { continue; }
+					g.setColor(new Color(0, 255, 0, Math.max(159 - i/10, 0)));
+					g.drawLine(GRAPH.getWidth()/2 + i, 0, GRAPH.getWidth()/2 + i, GRAPH.getHeight());
+					g.drawLine(GRAPH.getWidth()/2 - i, 0, GRAPH.getWidth()/2 - i, GRAPH.getHeight());
+				}
+				for(int i = 0; i < GRAPH.getHeight()/2; i += 100) {
+					if(i % 400 == 0) { continue; }
+					g.setColor(new Color(0, 255, 0, Math.max(223 - i/4, 0)));
+					g.drawLine(0, GRAPH.getHeight()/2 + i, GRAPH.getWidth(), GRAPH.getHeight()/2 + i);
+					g.drawLine(0, GRAPH.getHeight()/2 - i, GRAPH.getWidth(), GRAPH.getHeight()/2 - i);
+				}
+				for(int i = 0; i < GRAPH.getWidth()/2; i += 400) {
+					g.setColor(new Color(255, 0, 0, Math.max(255 - i/4, 0)));
+					g.drawLine(GRAPH.getWidth()/2 + i, 0, GRAPH.getWidth()/2 + i, GRAPH.getHeight());
+					g.drawLine(GRAPH.getWidth()/2 - i, 0, GRAPH.getWidth()/2 - i, GRAPH.getHeight());
+				}
+				for(int i = 0; i < GRAPH.getHeight()/2; i += 400) {
+					g.setColor(new Color(255, 0, 0, Math.max(255 - i/2, 0)));
+					g.drawLine(0, GRAPH.getHeight()/2 + i, GRAPH.getWidth(), GRAPH.getHeight()/2 + i);
+					g.drawLine(0, GRAPH.getHeight()/2 - i, GRAPH.getWidth(), GRAPH.getHeight()/2 - i);
+				}
+//				g.drawLine(0, GRAPH.getHeight()/2, GRAPH.getWidth(), GRAPH.getHeight()/2);
+//				g.drawLine(GRAPH.getWidth()/2, 0, GRAPH.getWidth()/2, GRAPH.getHeight());
 			}
 			
 			public static InputFunction mathFunction;
