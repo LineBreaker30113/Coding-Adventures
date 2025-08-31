@@ -45,6 +45,8 @@ public class DirectoryToText {
 		return name.endsWith(".txt") || name.endsWith(".java") || name.endsWith(".md")
 				|| name.endsWith(".log") || name.endsWith(".xml") || name.endsWith(".json")
 				|| name.endsWith(".csv") || name.endsWith(".html") || name.endsWith(".css")
+				|| name.endsWith(".py") || name.endsWith(".c") || name.endsWith(".cpp")
+				|| name.endsWith(".c#") || name.endsWith(".h") || name.endsWith(".hpp")
 				|| name.endsWith(".js") || name.endsWith(".properties");
 		// Add more text file extensions as needed
 	}

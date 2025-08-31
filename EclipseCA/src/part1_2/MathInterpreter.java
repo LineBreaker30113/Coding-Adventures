@@ -1,6 +1,5 @@
-package part1;
+package part1_2;
 
-import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -13,19 +12,21 @@ import java.util.stream.IntStream;
 
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 
-import part1.MathInterpreter.InputFunctionElementConstant.ConstantType;
+import part1_2.MathInterpreter.InputFunctionElementConstant.ConstantType;
 
 
 public class MathInterpreter {
-	
+
 	/**
 	 * Defining syntax:
 	 * value like:
@@ -45,16 +46,16 @@ public class MathInterpreter {
 		Sin, Cos, Tan, Sinh, Cosh, Tanh, Ceil, Floor, Round,
 		Addition, Multiplication, Exponentiation, Logarithm, Modulation;
 	}
-	
+
 	public static interface InputFunction {
 		public double evaluate(double x, double y);
-		
+
 		public static abstract class InputFunctionValueObject implements InputFunction {
 			public abstract double getValue();
 			@Override
 			public String toString() { return ""+getValue(); }
 		}
-		
+
 		InputFunction xVariable = new InputFunction() {
 			@Override
 			public String toString() { return "x"; }
@@ -71,7 +72,7 @@ public class MathInterpreter {
 
 	public static interface UnaryInputFunction {
 		public double apply(double x, double y, double variable);
-		
+
 		default InputFunction setVariable(InputFunction input) {
 			final String unaryFunctionName = toString();
 			return (InputFunction) new InputFunction() {
@@ -209,7 +210,7 @@ public class MathInterpreter {
 				}
 			};
 		}
-		
+
 		BinaryInputFunction addition = new BinaryInputFunction() {
 			@Override public String toString() { return "+"; }
 			@Override
@@ -246,7 +247,7 @@ public class MathInterpreter {
 			}
 		};
 	}
-	
+
 	public static class InputFunctionElement {
 		public InputFunctionElementType type;
 		private boolean isInput, isUnary, isBinary, isTernary;
@@ -265,7 +266,7 @@ public class MathInterpreter {
 				isUnary = true; break;
 			case Addition: case Multiplication: case Exponentiation: case Logarithm: case Modulation: isBinary = true; break;
 			default:
-				
+
 				break;
 			}
 		}
@@ -368,7 +369,7 @@ public class MathInterpreter {
 		public static enum ConstantType {
 			Pi(Math.PI), Tau(Math.PI * 2.), HPi(Math.PI / 2.),
 			E(Math.E), Rad(Math.PI / 180.);
-			
+
 			public final double value;
 			ConstantType(double value) {
 				this.value = value;
@@ -399,17 +400,22 @@ public class MathInterpreter {
 			return inputFunction;
 		}
 	}
-	
+
 	// Third part of Interpreting Math, to transform the structured elements into a function
 	// It is not a perfect design but primarily because of simplicity for now it also handles order of the binary operations
 	public static InputFunction compose(LinkedList<InputFunctionElement> elementSource) {
 		// Preparing the workspace and the result:
 		LinkedList<InputFunctionElement> elements = (LinkedList<InputFunctionElement>) elementSource.clone();
 		// Solving the edge cases:
-		if(elements.get(0).isBinary()) {
+		if(elements.getFirst().isBinary()) {
 			elements.add(0, new InputFunctionElementValue(null, 1.));
 		}
+		if(elements.getLast().isBinary()) {
+			elements.add(new InputFunctionElementValue(null, 1.));
+		}
+		System.out.println("Composer is given those elements: { ");
 		elements.forEach(e -> System.out.println(e));
+		System.out.println("} Composer input!");
 		// Processing all unary (also consequently every thing inside of unary functions) functions:
 		{
 		LinkedList<InputFunctionElement> unaries = new LinkedList<InputFunctionElement>();
@@ -435,13 +441,26 @@ public class MathInterpreter {
 		// Restructuring the list in order to prevent errors. I guess this part can be removed.
 		for(ListIterator<InputFunctionElement> lit = elements.listIterator(); lit.hasNext(); ) {
 			InputFunctionElement element = lit.next();
-			while(element.isInput()) { if(!lit.hasNext()) { break; } element = lit.next(); }
+			if(!lit.hasNext()) { break; }
+			if(element.isInput()) {
+				InputFunctionElement nextElement = lit.next();
+				while(nextElement.isInput()) {
+					lit.previous();
+					lit.add(new InputFunctionElement(InputFunctionElementType.Multiplication));
+					lit.next();
+					element = nextElement;
+					if(!lit.hasNext()) { break; }
+					nextElement = lit.next();
+				}
+				continue;
+			}
 			if(!lit.hasNext()) { break; }
 			if(element.isBinary()) {
 				InputFunctionElement nextElement = lit.next();
 				if(nextElement.isBinary()) {
 					lit.previous(); lit.add(new InputFunctionElementValue(null, 1.));
-				} element = nextElement;
+				}
+				element = nextElement;
 			}
 		}
 		// Processing exponentiation and logarithym binary functions left to right.
@@ -519,11 +538,11 @@ public class MathInterpreter {
 			case 'y': result.add(new InputFunctionElement(InputFunctionElementType.Yvariable)); break;
 			case '(': // Note that the rules inside of the parenthesis are exactly the same as the ones outside.
 				startIndex = ++ti; // Storing the beginning index.
-				int parantehesis = 1; // Parenthesis counter.
-				while(parantehesis > 0) { // Logic to find the end of original parenthesis.
+				int paranthesis = 1; // Parenthesis counter.
+				while(paranthesis > 0) { // Logic to find the end of original parenthesis.
 					ti++; if(ti == text.length()) { break; }  // If the text ends without closing, we accept the end as closing.
-					if(text.charAt(ti) == '(') { parantehesis++;
-					} else if(text.charAt(ti) == ')') { parantehesis--; }
+					if(text.charAt(ti) == '(') { paranthesis++;
+					} else if(text.charAt(ti) == ')') { paranthesis--; }
 				}
 				// The insides of the parenthesis will be lexed with the same function. Remember the note.
 				result.add(new InputFunctionElementParenthesis(InputFunctionElementType.Parenthesis,
@@ -626,14 +645,14 @@ public class MathInterpreter {
 					result.add(new InputFunctionElement(InputFunctionElementType.Floor)); ti += 4; break;
 				}
 			default:
-				System.out.println(text.charAt(ti));
+				System.out.println("Lexer found undefined token: \"" + text.charAt(ti) + "\" at " + ti);
 				break;
 			}
 		}
 //		result.forEach(e -> System.out.println(e)); System.out.println("\n\n");
 		return result;
 	}
-	
+
 	/**
 	 * Defining syntax:
 	 * value like:
@@ -648,177 +667,243 @@ public class MathInterpreter {
 	 * */
 
 	public static void main(String[] args) {
-		
-//		System.out.println(compose(lex("(x^(3.5)*4*sin(absx)")));
-		
-		new JFrame() {
-			
-			public static final JPanel APPLICATION = new JPanel(), GRAPH = new JPanel() {
-				@Override
-				public void paintComponent(Graphics graphics) {
-					graphPrepaint((Graphics2D) graphics);
-					try {
-						graphPaint((Graphics2D) graphics);
-					} catch(Error e) {
-						JOptionPane.showMessageDialog(null, "The Application failed to graph this function!");
-						INPUT_TEXTBOX.setText(defaultFunction);
-//						INPUT_TEXTBOX;
-					}
-					graphPostpaint((Graphics2D) graphics);
-				}
-			};
-			public static final JTextField INPUT_TEXTBOX = new JTextField(50);
-			public static final JSlider Y_SLIDER = new JSlider(JSlider.HORIZONTAL, -300, 300, 0);
-			
-			static final int RADIUS = 2;
-			public static void fillCircle(Graphics2D g, int x, int y) { g.fillOval(x - RADIUS, y - RADIUS, 2 * RADIUS, 2 * RADIUS); }
-			
 
-			static int divider = 3, mid = divider / 2;
-			static double fraction = 1./divider;
-			static double formerHeight;
-			static int mayIncreaseDivder = 0;
-			
-			public static void graphPrepaint(Graphics2D g) {
-				g.setBackground(Color.BLACK);
-				g.clearRect(0, 0, GRAPH.getWidth(), GRAPH.getHeight());
-				g.setColor(new Color(255, 255, 255, 255 * 10 / (divider + 10) + 1));
-			}
-			public static void graphPaint(Graphics2D g) {
-				divider = 3; mid = divider / 2; fraction = 1./divider;
-				formerHeight = -mathFunction.evaluate((0 - GRAPH.getWidth()/2) / divider + fraction * -mid, yValue);
-				mayIncreaseDivder = 0;
-				for(int x = -30; x < GRAPH.getWidth(); x++) {
-					for(int di = -mid; di <= mid; di++) {
-						double height = -mathFunction.evaluate((x - GRAPH.getWidth()/2) / 3. + fraction * di, yValue);
-						fillCircle(g, x, (int) Math.round(height) + GRAPH.getHeight()/2);
-						if(Math.abs(formerHeight - height) > RADIUS * 2) {
-							if(mayIncreaseDivder < 2) { mayIncreaseDivder++;
-							} else {
-								divider++; mid = divider / 2; fraction = 1./divider;
-							}
-						} else { mayIncreaseDivder = 0; }
-						formerHeight = height;
+//		System.out.println(compose(lex("(x^(3.5)*4*sin(absx)")));
+
+		//  style = "margin-top: 0px;"
+		final String instructionsText = "<html>"
+				+ "<body style = \"color: #000; background-color: #b6b6b6; margin: 0px 10px 0px 10px;\">"
+				+ "<h1 style = \"color: #fff; background-color: #666;\">Math Interpreter Instruction Manual</h3>"
+				+ "<p style = \"margin-top: 0px;\">This interpreter uses a syntax specific to itself.</p>"
+				+ "<p style = \"margin-top: 0px;\">The idea of this notion was to use as least binary operators as possible</p>"
+				+ "<h3>Operator Precedence (Order of Operations):</h3>"
+				+ "<ol style = \"margin-top: 0px;\">"
+				+ "<li> Expressions within Parenthesis have the maximum priority</li>"
+				+ "<li> Unaries (functions with only one parameter) are done right left.(e.g., \"sinx\")</li>"
+				+ "<li> Binary (functions with exactly 2 parameters) are in math Precedence.(e.g., \"x^2\")</li>"
+				+ "</ol>"
+				+ "<h3>Variables:</h3>"
+				+ "<ul style = \"margin-top: 0px;\">"
+				+ "<li><b>x</b>: Represents the horizontal axis input.</li>"
+				+ "<li><b>y</b>: Represents the value of the slider.</li>"
+				+ "</ul>"
+				+ "<h3 style = \"margin-bottom: 0px;\">Constants:</h3>"
+				+ "<h5 style = \"margin-top: 0px;\">(To use a constant write \"C\" followed by it's name (e.g., \"Cpi\" for pie))</h5>"
+				+ "<b>pi</b>: Pi (3.14...) || "
+				+ "<b>hpi</b>: Pi/2 (1.57...) || "
+				+ "<b>tau</b>: Pi*2 (6.28...) || "
+				+ "<b>e</b>: E (2.71...) || "
+				+ "<b>rad</b>: Pi/180 (0.017...)"
+				+ "<br/><br/>"
+				+ "<h3 style = \"margin-bottom: 0px;\">Binary Operators (Written between operands):</h3>"
+				+ "<h5 style = \"margin-top: 0px;\">(Notice there is not division or subtraction. for them take help from unary operators)</h5>"
+				+ "<ul style = \"margin-top: 0px;\">"
+				+ "<li><b>^</b>: Exponentiation (e.g., \"x^2\")</li>"
+				+ "<li><b>log</b>: Logarithm of a with the base b (e.g., \"alogb\")</li>"
+				+ "<li><b>*</b>: Multiplication (e.g., \"x*y\")</li>"
+				+ "<li><b>mod</b>: Modulus (e.g., \"xmody\")</li>"
+				+ "<li><b>+</b>: Addition (e.g., \"x+y\")</li>"
+				+ "</ul>"
+				+ "<h3 style = \"margin-bottom: 0px;\">Unary Operators (Written before operands):</h3>"
+				+ "<h5 style = \"margin-top: 0px;\">(You do not necessarily need to use Paranthesis for any of them.)</h5>"
+				+ "<ul style = \"margin-top: 0px;\">"
+				+ "<li><b>-</b>: Negation (e.g., \"-x\")</li>"
+				+ "<li><b>/</b>: Inverse (e.g., \"/x\")</li>"
+				+ "<li><b>abs</b>: Absolute value (e.g., \"absx\")</li>"
+				+ "<li><b>ln</b>: Natural logarithm (e.g., \"lnx\")</li>"
+				+ "<li><b>e</b>: Exponential function (e.g., \"ex\")</li>"
+				+ "<li><b>sin</b>, <b>cos</b>, <b>tan</b>: Trigonometric functions</li>"
+				+ "<li><b>sinh</b>, <b>cosh</b>, <b>tanh</b>: Hyperbolic trigonometric functions</li>"
+				+ "<li><b>ceil</b>, <b>floor</b>, <b>round</b>: Rounding functions</li>"
+				+ "</ul>"
+				+ "<h3>Important Notes:</h3>"
+				+ "<ul style = \"margin-top: 0px;\">"
+				+ "<li>Interpreter ignores all of the spaces except ones who seperate numeric values (e.g., \"35.3 0.23\")</li>"
+				+ "<li>Use parentheses \"()\" to group expressions. Example: \"sin(x^2 + y^2) / e(x*y)\"</li>"
+				+ "<li>The system support implicit multiplication (e.g., \"2x\" but use \"*\" with values.)</li>"
+				+ "</ul>"
+				+ "</body></html>";
+
+//		JOptionPane.showMessageDialog(null, instructionsText, "Interpreter Instructions", JOptionPane.INFORMATION_MESSAGE);
+		SwingUtilities.invokeLater(() -> {
+			new JFrame() {
+
+				public static final JPanel APPLICATION = new JPanel(), GRAPH = new JPanel() {
+					@Override
+					public void paintComponent(Graphics graphics) {
+						graphPrepaint((Graphics2D) graphics);
+						try {
+							graphPaint((Graphics2D) graphics);
+						} catch(Error e) {
+							JOptionPane.showMessageDialog(null, "The Application failed to graph this function!");
+							INPUT_TEXTBOX.setText(DEFAULT_FUNCTION);
+//							INPUT_TEXTBOX;
+						}
+						graphPostpaint((Graphics2D) graphics);
 					}
-					if(divider * (GRAPH.getWidth() - x) * INPUT_TEXTBOX.getText().length() >
-						180 * 180 * defaultFunction.length() * 16 / Runtime.getRuntime().availableProcessors())
-					{
-						System.out.println("parallelizing: " + (divider * (GRAPH.getWidth() - x)));
-						IntStream.range(x, GRAPH.getWidth()).parallel().forEach(xp -> {
-							for(int di = -mid; di <= mid; di++) {
-								double height = -mathFunction.evaluate((xp - GRAPH.getWidth()/2) / 3. + fraction * di, yValue);
-								fillCircle(g, xp, (int) Math.round(height) + GRAPH.getHeight()/2);
-								if(Math.abs(formerHeight - height) > RADIUS * 2) {
-									if(mayIncreaseDivder < 2) { mayIncreaseDivder++;
-									} else {
-										divider++; mid = divider / 2; fraction = 1./divider;
-									}
-								} else { mayIncreaseDivder = 0; }
-								formerHeight = height;
-							}
-						});
-						break;
+				};
+				public static final JTextField INPUT_TEXTBOX = new JTextField(50);
+				public static final JSlider Y_SLIDER = new JSlider(JSlider.HORIZONTAL, -300, 300, 0);
+
+				static final int RADIUS = 2;
+				public static void fillCircle(Graphics2D g, int x, int y) { g.fillOval(x - RADIUS, y - RADIUS, 2 * RADIUS, 2 * RADIUS); }
+
+
+				static int divider = 3, mid = divider / 2;
+				static double fraction = 1./divider;
+				static double formerHeight;
+				static int mayIncreaseDivder = 0;
+
+				public static void graphPrepaint(Graphics2D g) {
+					g.setBackground(Color.BLACK);
+					g.clearRect(0, 0, GRAPH.getWidth(), GRAPH.getHeight());
+					g.setColor(new Color(255, 255, 255, 255 * 10 / (divider + 10) + 1));
+				}
+				public static void graphPaint(Graphics2D g) {
+					divider = 3; mid = divider / 2; fraction = 1./divider;
+					formerHeight = -mathFunction.evaluate((0 - GRAPH.getWidth()/2) / divider + fraction * -mid, yValue);
+					mayIncreaseDivder = 0;
+					for(int x = -30; x < GRAPH.getWidth(); x++) {
+						for(int di = -mid; di <= mid; di++) {
+							double height = -mathFunction.evaluate((x - GRAPH.getWidth()/2) / 3. + fraction * di, yValue);
+							fillCircle(g, x, (int) Math.round(height) + GRAPH.getHeight()/2);
+							if(Math.abs(formerHeight - height) > RADIUS * 2) {
+								if(mayIncreaseDivder < 2) { mayIncreaseDivder++;
+								} else {
+									divider++; mid = divider / 2; fraction = 1./divider;
+								}
+							} else { mayIncreaseDivder = 0; }
+							formerHeight = height;
+						}
+						if(divider * (GRAPH.getWidth() - x) * INPUT_TEXTBOX.getText().length() >
+							180 * 180 * DEFAULT_FUNCTION.length() * 16 / Runtime.getRuntime().availableProcessors())
+						{
+							System.out.println("parallelizing: " + (divider * (GRAPH.getWidth() - x)));
+							IntStream.range(x, GRAPH.getWidth()).parallel().forEach(xp -> {
+								for(int di = -mid; di <= mid; di++) {
+									double height = -mathFunction.evaluate((xp - GRAPH.getWidth()/2) / 3. + fraction * di, yValue);
+									fillCircle(g, xp, (int) Math.round(height) + GRAPH.getHeight()/2);
+									if(Math.abs(formerHeight - height) > RADIUS * 2) {
+										if(mayIncreaseDivder < 2) { mayIncreaseDivder++;
+										} else {
+											divider++; mid = divider / 2; fraction = 1./divider;
+										}
+									} else { mayIncreaseDivder = 0; }
+									formerHeight = height;
+								}
+							});
+							break;
+						}
 					}
+//					System.out.println(divider);
 				}
-//				System.out.println(divider);
-			}
-			public static void graphPostpaint(Graphics2D g) {
-				for(int i = 0; i < GRAPH.getWidth()/2; i += 20) {
-					if(i % 100 == 0) { continue; }
-					g.setColor(new Color(0, 0, 255, Math.max(127 - i/10, 0)));
-					g.drawLine(GRAPH.getWidth()/2 + i, 0, GRAPH.getWidth()/2 + i, GRAPH.getHeight());
-					g.drawLine(GRAPH.getWidth()/2 - i, 0, GRAPH.getWidth()/2 - i, GRAPH.getHeight());
-				}
-				for(int i = 0; i < GRAPH.getHeight()/2; i += 20) {
-					if(i % 100 == 0) { continue; }
-					g.setColor(new Color(0, 0, 255, Math.max(191 - i/5, 0)));
-					g.drawLine(0, GRAPH.getHeight()/2 + i, GRAPH.getWidth(), GRAPH.getHeight()/2 + i);
-					g.drawLine(0, GRAPH.getHeight()/2 - i, GRAPH.getWidth(), GRAPH.getHeight()/2 - i);
-				}
-				for(int i = 0; i < GRAPH.getWidth()/2; i += 100) {
-					if(i % 400 == 0) { continue; }
-					g.setColor(new Color(0, 255, 0, Math.max(159 - i/10, 0)));
-					g.drawLine(GRAPH.getWidth()/2 + i, 0, GRAPH.getWidth()/2 + i, GRAPH.getHeight());
-					g.drawLine(GRAPH.getWidth()/2 - i, 0, GRAPH.getWidth()/2 - i, GRAPH.getHeight());
-				}
-				for(int i = 0; i < GRAPH.getHeight()/2; i += 100) {
-					if(i % 400 == 0) { continue; }
-					g.setColor(new Color(0, 255, 0, Math.max(223 - i/4, 0)));
-					g.drawLine(0, GRAPH.getHeight()/2 + i, GRAPH.getWidth(), GRAPH.getHeight()/2 + i);
-					g.drawLine(0, GRAPH.getHeight()/2 - i, GRAPH.getWidth(), GRAPH.getHeight()/2 - i);
-				}
-				for(int i = 0; i < GRAPH.getWidth()/2; i += 400) {
-					g.setColor(new Color(255, 0, 0, Math.max(255 - i/4, 0)));
-					g.drawLine(GRAPH.getWidth()/2 + i, 0, GRAPH.getWidth()/2 + i, GRAPH.getHeight());
-					g.drawLine(GRAPH.getWidth()/2 - i, 0, GRAPH.getWidth()/2 - i, GRAPH.getHeight());
-				}
-				for(int i = 0; i < GRAPH.getHeight()/2; i += 400) {
-					g.setColor(new Color(255, 0, 0, Math.max(255 - i/2, 0)));
-					g.drawLine(0, GRAPH.getHeight()/2 + i, GRAPH.getWidth(), GRAPH.getHeight()/2 + i);
-					g.drawLine(0, GRAPH.getHeight()/2 - i, GRAPH.getWidth(), GRAPH.getHeight()/2 - i);
-				}
-//				g.drawLine(0, GRAPH.getHeight()/2, GRAPH.getWidth(), GRAPH.getHeight()/2);
-//				g.drawLine(GRAPH.getWidth()/2, 0, GRAPH.getWidth()/2, GRAPH.getHeight());
-			}
-			
-			public static InputFunction mathFunction;
-			public static double yValue = 0.;
-			
-			public static final String defaultFunction =
-					"sin(x*e3*/(absx^0.7*0.3+(y+30)+e1))*6*sin(ln(absx*0.13+(y+30)*3.2+e1)*6)*5*ln((y+33)*2+e1)";
-			
-			public void makeVisible() {
-				INPUT_TEXTBOX.setText(defaultFunction);
-				mathFunction = compose(lex(INPUT_TEXTBOX.getText()));
-				APPLICATION.setPreferredSize(new Dimension(700, 800));
-				APPLICATION.setBackground(Color.GRAY);
-				APPLICATION.setLayout(new BorderLayout()); // Using BorderLayout for the main application panel
-				GRAPH.setBackground(Color.BLACK);
-				APPLICATION.add(GRAPH, BorderLayout.CENTER);
-				JPanel controlsPanel = new JPanel();
-				controlsPanel.setLayout(new BoxLayout(controlsPanel, BoxLayout.Y_AXIS));
-				controlsPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
-				INPUT_TEXTBOX.addActionListener(e -> {
-					try {
-						mathFunction = compose(lex(INPUT_TEXTBOX.getText()));
-					} catch(Error e1) {
-						JOptionPane.showMessageDialog(null, "The Math Interpreter failed to understand this!");
+				public static void graphPostpaint(Graphics2D g) {
+					for(int i = 0; i < GRAPH.getWidth()/2; i += 20) {
+						if(i % 100 == 0) { continue; }
+						g.setColor(new Color(0, 0, 255, Math.max(127 - i/10, 0)));
+						g.drawLine(GRAPH.getWidth()/2 + i, 0, GRAPH.getWidth()/2 + i, GRAPH.getHeight());
+						g.drawLine(GRAPH.getWidth()/2 - i, 0, GRAPH.getWidth()/2 - i, GRAPH.getHeight());
 					}
-					GRAPH.repaint();
-				});
-				Y_SLIDER.setBounds(10, 640, 580, 50);
-				Y_SLIDER.setMajorTickSpacing(50);
-				Y_SLIDER.setMinorTickSpacing(5);
-				Y_SLIDER.setPaintTicks(true);
-				Hashtable<Integer, JLabel> labelTable = new Hashtable<>();
-				for (int i = Y_SLIDER.getMinimum(); i <= Y_SLIDER.getMaximum(); i += Y_SLIDER.getMajorTickSpacing()) {
-					double realValue = i / 10.0;
-					labelTable.put(i, new JLabel(String.valueOf(realValue)));
+					for(int i = 0; i < GRAPH.getHeight()/2; i += 20) {
+						if(i % 100 == 0) { continue; }
+						g.setColor(new Color(0, 0, 255, Math.max(191 - i/5, 0)));
+						g.drawLine(0, GRAPH.getHeight()/2 + i, GRAPH.getWidth(), GRAPH.getHeight()/2 + i);
+						g.drawLine(0, GRAPH.getHeight()/2 - i, GRAPH.getWidth(), GRAPH.getHeight()/2 - i);
+					}
+					for(int i = 0; i < GRAPH.getWidth()/2; i += 100) {
+						if(i % 400 == 0) { continue; }
+						g.setColor(new Color(0, 255, 0, Math.max(159 - i/10, 0)));
+						g.drawLine(GRAPH.getWidth()/2 + i, 0, GRAPH.getWidth()/2 + i, GRAPH.getHeight());
+						g.drawLine(GRAPH.getWidth()/2 - i, 0, GRAPH.getWidth()/2 - i, GRAPH.getHeight());
+					}
+					for(int i = 0; i < GRAPH.getHeight()/2; i += 100) {
+						if(i % 400 == 0) { continue; }
+						g.setColor(new Color(0, 255, 0, Math.max(223 - i/4, 0)));
+						g.drawLine(0, GRAPH.getHeight()/2 + i, GRAPH.getWidth(), GRAPH.getHeight()/2 + i);
+						g.drawLine(0, GRAPH.getHeight()/2 - i, GRAPH.getWidth(), GRAPH.getHeight()/2 - i);
+					}
+					for(int i = 0; i < GRAPH.getWidth()/2; i += 400) {
+						g.setColor(new Color(255, 0, 0, Math.max(255 - i/4, 0)));
+						g.drawLine(GRAPH.getWidth()/2 + i, 0, GRAPH.getWidth()/2 + i, GRAPH.getHeight());
+						g.drawLine(GRAPH.getWidth()/2 - i, 0, GRAPH.getWidth()/2 - i, GRAPH.getHeight());
+					}
+					for(int i = 0; i < GRAPH.getHeight()/2; i += 400) {
+						g.setColor(new Color(255, 0, 0, Math.max(255 - i/2, 0)));
+						g.drawLine(0, GRAPH.getHeight()/2 + i, GRAPH.getWidth(), GRAPH.getHeight()/2 + i);
+						g.drawLine(0, GRAPH.getHeight()/2 - i, GRAPH.getWidth(), GRAPH.getHeight()/2 - i);
+					}
+//					g.drawLine(0, GRAPH.getHeight()/2, GRAPH.getWidth(), GRAPH.getHeight()/2);
+//					g.drawLine(GRAPH.getWidth()/2, 0, GRAPH.getWidth()/2, GRAPH.getHeight());
 				}
-				Y_SLIDER.setLabelTable(labelTable);
-				Y_SLIDER.setPaintLabels(true);
-				Y_SLIDER.addChangeListener(e -> {
-					yValue = Y_SLIDER.getValue() / 10.;
-					GRAPH.repaint();
-				});
-				APPLICATION.add(GRAPH, BorderLayout.CENTER);
-				controlsPanel.add(INPUT_TEXTBOX);
-				controlsPanel.add(Box.createRigidArea(new Dimension(0, 10))); // Spacer between components
-				controlsPanel.add(Y_SLIDER);
-				APPLICATION.add(controlsPanel, BorderLayout.SOUTH);
-				super.add(APPLICATION);
-				super.pack();
-				super.setDefaultCloseOperation(EXIT_ON_CLOSE);
-				super.setLocationRelativeTo(null);
-				super.setVisible(true);
-				super.repaint();
-			}
-		}.makeVisible();
+
+				public static InputFunction mathFunction;
+				public static double yValue = 0.;
+
+				public static final String DEFAULT_FUNCTION =
+						"sin(xe3/(absx^0.7*0.3+(y+30)+e1))6sin(ln(absx0.13+(y+30)^2/8+e1)6)5ln((y+33)2+e1)";
+
+				public void makeVisible() {
+					System.out.println(DEFAULT_FUNCTION.length());
+					INPUT_TEXTBOX.setText(DEFAULT_FUNCTION);
+					mathFunction = compose(lex(INPUT_TEXTBOX.getText()));
+					APPLICATION.setPreferredSize(new Dimension(800, 800));
+					APPLICATION.setBackground(Color.GRAY);
+					APPLICATION.setLayout(new BorderLayout()); // Using BorderLayout for the main application panel
+					GRAPH.setBackground(Color.BLACK);
+					APPLICATION.add(GRAPH, BorderLayout.CENTER);
+					JPanel controlsPanel = new JPanel();
+					controlsPanel.setLayout(new BoxLayout(controlsPanel, BoxLayout.Y_AXIS));
+					controlsPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+					INPUT_TEXTBOX.addActionListener(e -> {
+						try {
+							mathFunction = compose(lex(INPUT_TEXTBOX.getText()));
+							System.out.println("Compose gave this: " + mathFunction);
+						} catch(Error e1) {
+							JOptionPane.showMessageDialog(null, "The Math Interpreter failed to understand this!");
+						}
+						GRAPH.repaint();
+					});
+					Y_SLIDER.setMajorTickSpacing(50);
+					Y_SLIDER.setMinorTickSpacing(5);
+					Y_SLIDER.setPaintTicks(true);
+					Hashtable<Integer, JLabel> labelTable = new Hashtable<>();
+					for (int i = Y_SLIDER.getMinimum(); i <= Y_SLIDER.getMaximum(); i += Y_SLIDER.getMajorTickSpacing()) {
+						double realValue = i / 10.0;
+						labelTable.put(i, new JLabel(String.valueOf(realValue)));
+					}
+					Y_SLIDER.setLabelTable(labelTable);
+					Y_SLIDER.setPaintLabels(true);
+					Y_SLIDER.addChangeListener(e -> {
+						yValue = Y_SLIDER.getValue() / 10.;
+						GRAPH.repaint();
+					});
+					APPLICATION.add(GRAPH, BorderLayout.CENTER);
+					JPanel textPanel = new JPanel();
+					textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.X_AXIS));
+					JButton instructionsButton = new JButton("Instructions Manual");
+					instructionsButton.addActionListener(e -> {
+						JOptionPane.showMessageDialog(APPLICATION, instructionsText, "Interpreter Instructions", JOptionPane.INFORMATION_MESSAGE);
+					});
+					textPanel.add(instructionsButton, 0);
+					textPanel.add(Box.createRigidArea(new Dimension(10, 0))); // Spacer between components
+					textPanel.add(INPUT_TEXTBOX);
+					controlsPanel.add(textPanel);
+					controlsPanel.add(Y_SLIDER);
+					APPLICATION.add(controlsPanel, BorderLayout.SOUTH);
+					super.add(APPLICATION);
+					super.pack();
+					super.setDefaultCloseOperation(EXIT_ON_CLOSE);
+					super.setLocationRelativeTo(null);
+					super.setVisible(true);
+					super.repaint();
+				}
+			} /*;// */.makeVisible();
+		});
 		/*
 //		InputFunction func = compose(lex(
 ////				"x+y*6+lnex")); (/43*63^sinx*(x^2))
 //				"x+y+e(x*y* /4+-(/4*64^cos(x*y* /12)+(x^2+y^2)* /8))"));
-//				"(x+y*(/43*63^sinx *  (x^2)log(    sinh ( y +lny^2)+ee(-ex+\n/	ln34 * / y)+x)+-y)* /tanhy)+tanhtanex^3* /y"));
+//				"(x+y*(/43*63^sinx *  (x^2)log(   sinh ( y +lny^2)+ee(-ex+\n/	ln34 * / y)+x)+-y)* /tanhy)+tanhtanex^3* /y"));
 //				"((x*x+y*y)*.1*Cpi)"));
 ////				"(sin(x*y* /12))"));
 ////				"(64^cos(x*y* /12))"));

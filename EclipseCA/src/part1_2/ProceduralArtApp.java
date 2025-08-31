@@ -1,4 +1,4 @@
-package part1;
+package part1_2;
 
 import java.awt.Color;
 import java.awt.Dimension;
